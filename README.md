@@ -1,12 +1,15 @@
 # FamilyCountdown (Android kiosk)
 
-A native Android port of the iPad app: a black "train-station board" listing
-events by name with a split-flap countdown of days / hours / minutes / seconds
-until each one. On the event's day the digits are replaced by a red **ARRIVED**;
-the day after, repeating events (birthdays) roll to next year and one-time
-events drop off. US holidays (New Year's, Easter, July 4th, Thanksgiving,
-Christmas) are added automatically. The list is edited and stored on-device —
-no server or password.
+A native Android port of the
+[FamilyCountdown iPad app](https://github.com/wcharliebrown/FamilyCountdown_iOS):
+a black "train-station board" listing events by name with a split-flap countdown
+of days / hours / minutes / seconds until each one. On the event's day the digits
+are replaced by a red **ARRIVED**; the day after, repeating events (birthdays)
+roll to next year and one-time events drop off. US holidays (New Year's, Easter,
+July 4th, Thanksgiving, Christmas) are added automatically. The list is edited
+and stored on-device — no server or password.
+
+![FamilyCountdown board on a 1080p Android kiosk — split-flap countdowns to Disney Trip, US holidays, and birthdays](docs/board.png)
 
 Built for a 15.6" 1920×1080 Android 12 touch kiosk (HIGOLE all-in-one) running
 in landscape, but it works on any landscape tablet from Android 8 (API 26) up.
@@ -14,6 +17,20 @@ in landscape, but it works on any landscape tablet from Android 8 (API 26) up.
 The gear (top-right) opens the editor: set the display time zone, shift saved
 event times between zones, add / edit / delete events, and grant the one
 permission needed for auto-start after a reboot.
+
+![FamilyCountdown editor — Display settings (Time Zone, Shift Event Times), the Kiosk auto-start permission, and the editable event list](docs/settings.png)
+
+**Time Zone** picks which zone drives day boundaries (defaults to Automatic, following the device):
+
+![FamilyCountdown Time Zone picker — searchable list with an Automatic option](docs/timezone.png)
+
+**Shift Event Times** re-stamps every saved event's wall-clock reading from one zone to another, with a live preview:
+
+![FamilyCountdown Shift Event Times — From/To zone pickers and a before/after preview](docs/shift.png)
+
+Tapping an event opens the editor, with date / time pickers and the repeat and pin switches:
+
+![FamilyCountdown Edit Event — name, date, time, Repeats every year, Pinned, Delete Event](docs/editor.png)
 
 ## Build & run
 
