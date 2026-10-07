@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose-only app: parent on the platform theme (Theme.Material3.* XML themes are not available). -->
+    <style name="Theme.FamilyCountdown" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/board_black</item>
+        <item name="android:statusBarColor">@color/board_black</item>
+        <item name="android:navigationBarColor">@color/board_black</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>
