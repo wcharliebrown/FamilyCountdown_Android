@@ -1,6 +1,7 @@
 package com.dialogs.familycountdown.ui.board
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -26,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,12 +42,16 @@ import java.time.Instant
 
 /**
  * The station-board display: black, landscape, as many rows as fit.
- * Names on the left, split-flap countdowns on the right; a subtle gear opens the editor.
+ * Names on the left, split-flap countdowns on the right. A subtle gear — or a
+ * tap anywhere on the board — opens the editor. Tapping the first tile of the
+ * top row starts a "razzle dazzle" run; between 9 PM and 6 AM (display zone)
+ * the board is painted black when night blackout is on.
  */
 @Composable
 fun BoardScreen(store: EventStore, settings: SettingsStore, onOpenEditor: () -> Unit) {
     val userEvents by store.events.collectAsState()
     val tzId by settings.timeZoneIdentifier.collectAsState()
+    val blackoutEnabled by settings.nightBlackoutEnabled.collectAsState()
 
     var now by remember { mutableStateOf(Instant.now()) }
     LaunchedEffect(Unit) {
@@ -64,8 +70,29 @@ fun BoardScreen(store: EventStore, settings: SettingsStore, onOpenEditor: () -> 
         userEvents + HolidayProvider.holidays(now, zone).filter { it.label.lowercase() !in userLabels }
     }
     val board = CountdownEngine.board(allEvents, now, zone)
+    val blackout = blackoutEnabled && SettingsStore.isBlackoutHour(now, zone)
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
+    // Razzle dazzle: one run at a time; BoardScreen owns the tick driver.
+    var dazzle by remember { mutableStateOf<DazzleRun?>(null) }
+    LaunchedEffect(dazzle) {
+        val run = dazzle ?: return@LaunchedEffect
+        for (t in 1..DazzleRun.TICKS + 1) {
+            delay(DazzleRun.TICK_MS)
+            run.tick = t
+        }
+        delay(DazzleRun.SETTLE_GRACE_MS)   // let the staggered bounce finish before tiles go static
+        dazzle = null
+    }
+
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            // Tap anywhere opens the editor; the gear and the dazzle tile consume their own taps first.
+            .pointerInput(Unit) { detectTapGestures(onTap = { onOpenEditor() }) },
+    ) {
+        if (blackout) return@BoxWithConstraints   // night: nothing but black (and the tap handler)
+
         val density = LocalDensity.current
         val widthPx = constraints.maxWidth.toFloat()
         val heightPx = constraints.maxHeight.toFloat()
@@ -94,9 +121,15 @@ fun BoardScreen(store: EventStore, settings: SettingsStore, onOpenEditor: () -> 
                     ClockHeader(layout.metrics)
                 }
                 val rowHeight = with(density) { layout.rowHeight.toDp() }
-                visible.forEach { event ->
+                visible.forEachIndexed { idx, event ->
                     key(event.id) {
-                        EventRow(event = event, metrics = layout.metrics, rowHeight = rowHeight)
+                        EventRow(
+                            event = event, metrics = layout.metrics, rowHeight = rowHeight,
+                            dazzle = dazzle,
+                            row = idx,
+                            clockStartColumn = longest + 1,
+                            onDazzleTap = if (idx == 0) ({ if (dazzle == null) dazzle = DazzleRun() }) else null,
+                        )
                         Box(Modifier.fillMaxWidth().height(with(density) { 1f.toDp() }).background(FlipMetrics.separator))
                     }
                 }

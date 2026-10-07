@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -100,6 +101,7 @@ fun SettingsRow(
     value: String? = null,
     chevron: Boolean = false,
     onClick: (() -> Unit)? = null,
+    titleColor: Color = Color.Unspecified,
     trailing: (@Composable RowScope.() -> Unit)? = null,
 ) {
     Row(
@@ -111,7 +113,7 @@ fun SettingsRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, fontSize = 17.sp)
+            Text(title, fontSize = 17.sp, color = titleColor)
             if (subtitle != null) {
                 Text(subtitle, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

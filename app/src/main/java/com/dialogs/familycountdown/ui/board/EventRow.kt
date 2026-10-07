@@ -16,23 +16,36 @@ import com.dialogs.familycountdown.model.DisplayEvent
 /**
  * One board row: event name on the left, and on the right either the split-flap
  * countdown or a red ARRIVED once the event's day has come.
+ *
+ * [dazzle] scrambles every tile while a razzle-dazzle run is active; the
+ * clock's columns continue after the longest name's so the wave sweeps the
+ * whole row left to right. [onDazzleTap] (top row only) arms the first tile.
  */
 @Composable
-fun EventRow(event: DisplayEvent, metrics: FlipMetrics, rowHeight: Dp) {
+fun EventRow(
+    event: DisplayEvent,
+    metrics: FlipMetrics,
+    rowHeight: Dp,
+    dazzle: DazzleRun? = null,
+    row: Int = 0,
+    clockStartColumn: Int = 0,
+    onDazzleTap: (() -> Unit)? = null,
+) {
     Row(
         Modifier.fillMaxWidth().height(rowHeight),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TileText(text = event.label, metrics = metrics)
+        TileText(text = event.label, metrics = metrics, dazzle = dazzle, row = row, onFirstTap = onDazzleTap)
         Spacer(Modifier.weight(1f).widthIn(min = 32.dp))
         if (event.arrived) {
             TileText(
                 text = "ARRIVED", metrics = metrics,
                 tileTop = FlipMetrics.arrivedTile, tileBottom = FlipMetrics.arrivedTile,
                 glyph = Color.White,
+                dazzle = dazzle, row = row, startColumn = clockStartColumn,
             )
         } else {
-            FlipClock(remaining = event.remaining, metrics = metrics)
+            FlipClock(remaining = event.remaining, metrics = metrics, dazzle = dazzle, row = row, startColumn = clockStartColumn)
         }
     }
 }

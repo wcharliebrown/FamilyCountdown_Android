@@ -5,8 +5,10 @@ import com.dialogs.familycountdown.model.CountdownEvent
 import com.dialogs.familycountdown.model.EventStore
 import com.dialogs.familycountdown.model.HolidayProvider
 import com.dialogs.familycountdown.model.Iso8601
+import com.dialogs.familycountdown.model.SettingsStore
 import com.dialogs.familycountdown.model.TimeRemaining
 import com.dialogs.familycountdown.model.TimeShift
+import com.dialogs.familycountdown.ui.board.DazzleRun
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -176,6 +178,53 @@ class CountdownTests {
         val tz = ZoneId.of("America/Chicago")
         val d = date(2027, 5, 1, 9, 30)
         assertEquals(d, TimeShift.reinterpret(d, tz, tz))
+    }
+
+    // MARK: - Night blackout
+
+    @Test fun blackoutHourBoundaries() {
+        assertFalse(SettingsStore.isBlackoutHour(date(2026, 3, 10, 20, 59), ny))
+        assertTrue(SettingsStore.isBlackoutHour(date(2026, 3, 10, 21, 0), ny))
+        assertTrue(SettingsStore.isBlackoutHour(date(2026, 3, 11, 0, 0), ny))
+        assertTrue(SettingsStore.isBlackoutHour(date(2026, 3, 11, 5, 59), ny))
+        assertFalse(SettingsStore.isBlackoutHour(date(2026, 3, 11, 6, 0), ny))
+        assertFalse(SettingsStore.isBlackoutHour(date(2026, 3, 11, 12, 0), ny))
+    }
+
+    @Test fun blackoutUsesDisplayZone() {
+        val tenPmNewYork = date(2026, 3, 10, 22, 0)
+        assertTrue(SettingsStore.isBlackoutHour(tenPmNewYork, ny))
+        // Same instant is 7 PM in Los Angeles: not blackout there.
+        assertFalse(SettingsStore.isBlackoutHour(tenPmNewYork, ZoneId.of("America/Los_Angeles")))
+    }
+
+    // MARK: - Razzle dazzle
+
+    @Test fun dazzleReturnsRealCharAtRestAndAfterSettle() {
+        val run = DazzleRun(seed = 42L)
+        assertEquals('D', run.charFor(0, 0, 'D'))             // tick 0: at rest
+        run.tick = DazzleRun.TICKS + 1
+        assertEquals('D', run.charFor(0, 0, 'D'))             // settle tick: back to real
+        assertEquals('7', run.charFor(3, 13, '7'))
+    }
+
+    @Test fun dazzleScramblesFromAlphabetDeterministically() {
+        val a = DazzleRun(seed = 42L)
+        val b = DazzleRun(seed = 42L)
+        for (t in 1..DazzleRun.TICKS) {
+            a.tick = t; b.tick = t
+            for (row in 0 until 8) for (col in 0 until 40) {
+                val ch = a.charFor(row, col, ' ')
+                assertTrue("'$ch' not in alphabet", ch in DazzleRun.ALPHABET)
+                assertEquals(ch, b.charFor(row, col, ' '))
+            }
+        }
+        // Different tiles on the same tick don't all show the same character, across columns and rows.
+        a.tick = 1
+        val acrossColumns = (0 until 40).map { a.charFor(0, it, ' ') }.toSet()
+        assertTrue("expected variety across columns, got $acrossColumns", acrossColumns.size > 5)
+        val acrossRows = (0 until 8).map { a.charFor(it, 0, ' ') }.toSet()
+        assertTrue("expected variety across rows, got $acrossRows", acrossRows.size > 2)
     }
 
     private fun tempFile() = File(System.getProperty("java.io.tmpdir"), "fc-test-${UUID.randomUUID()}.json")

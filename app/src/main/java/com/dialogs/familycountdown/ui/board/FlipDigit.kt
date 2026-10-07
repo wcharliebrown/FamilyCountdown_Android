@@ -72,8 +72,8 @@ private fun DrawScope.drawSeam(m: FlipMetrics) {
     drawRect(FlipMetrics.seam, Offset(0f, m.halfHeight - m.seamThickness / 2f), Size(m.width, m.seamThickness))
 }
 
-private fun tileModifier(m: FlipMetrics, density: Density): Modifier = with(density) {
-    Modifier.size(m.width.toDp(), m.height.toDp()).clip(RoundedCornerShape(m.corner.toDp()))
+private fun tileModifier(m: FlipMetrics, density: Density, outer: Modifier = Modifier): Modifier = with(density) {
+    outer.size(m.width.toDp(), m.height.toDp()).clip(RoundedCornerShape(m.corner.toDp()))
 }
 
 /**
@@ -87,9 +87,10 @@ fun TileFace(
     tileTop: Color = FlipMetrics.cardTop,
     tileBottom: Color = FlipMetrics.cardBottom,
     glyph: Color = FlipMetrics.glyphColor,
+    modifier: Modifier = Modifier,
 ) {
     val glyphs = rememberGlyphCache(metrics)
-    Canvas(tileModifier(metrics, LocalDensity.current)) {
+    Canvas(tileModifier(metrics, LocalDensity.current, modifier)) {
         val g = glyphs[char]
         drawLeaf(g, Half.TOP, metrics, tileTop, glyph)
         drawLeaf(g, Half.BOTTOM, metrics, tileBottom, glyph)
@@ -107,7 +108,15 @@ fun TileFace(
  * 60 fps animation never recomposes or re-lays-out the board.
  */
 @Composable
-fun FlipDigit(value: Char, metrics: FlipMetrics, delayMs: Int = 0) {
+fun FlipDigit(
+    value: Char,
+    metrics: FlipMetrics,
+    delayMs: Int = 0,
+    tileTop: Color = FlipMetrics.cardTop,
+    tileBottom: Color = FlipMetrics.cardBottom,
+    glyph: Color = FlipMetrics.glyphColor,
+    modifier: Modifier = Modifier,
+) {
     var oldChar by remember { mutableStateOf(value) }
     var newChar by remember { mutableStateOf(value) }
     val progress = remember { Animatable(1f) }   // 1 = fully settled on the new char
@@ -124,12 +133,12 @@ fun FlipDigit(value: Char, metrics: FlipMetrics, delayMs: Int = 0) {
     val glyphs = rememberGlyphCache(metrics)
     val density = LocalDensity.current
 
-    Box(tileModifier(metrics, density)) {
+    Box(tileModifier(metrics, density, modifier)) {
         // Static backing: new on top (revealed as old folds away), old on bottom
         // (until the falling new leaf covers it).
         Canvas(Modifier.size(with(density) { metrics.width.toDp() }, with(density) { metrics.height.toDp() })) {
-            drawLeaf(glyphs[newChar], Half.TOP, metrics, FlipMetrics.cardTop, FlipMetrics.glyphColor)
-            drawLeaf(glyphs[oldChar], Half.BOTTOM, metrics, FlipMetrics.cardBottom, FlipMetrics.glyphColor)
+            drawLeaf(glyphs[newChar], Half.TOP, metrics, tileTop, glyph)
+            drawLeaf(glyphs[oldChar], Half.BOTTOM, metrics, tileBottom, glyph)
         }
 
         // The moving leaf. Both leaves hinge on the centre seam, so the layer's
@@ -151,10 +160,10 @@ fun FlipDigit(value: Char, metrics: FlipMetrics, delayMs: Int = 0) {
             val p = progress.value
             if (p < 0.5f) {
                 val t = easeIn(p / 0.5f)
-                drawLeaf(glyphs[oldChar], Half.TOP, metrics, FlipMetrics.cardTop, FlipMetrics.glyphColor, darken = 0.55f * t)
+                drawLeaf(glyphs[oldChar], Half.TOP, metrics, tileTop, glyph, darken = 0.55f * t)
             } else {
                 val t = easeOutBounce((p - 0.5f) / 0.5f)
-                drawLeaf(glyphs[newChar], Half.BOTTOM, metrics, FlipMetrics.cardBottom, FlipMetrics.glyphColor, darken = 0.5f * (1f - t))
+                drawLeaf(glyphs[newChar], Half.BOTTOM, metrics, tileBottom, glyph, darken = 0.5f * (1f - t))
             }
         }
 

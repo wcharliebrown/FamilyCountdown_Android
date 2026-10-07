@@ -10,9 +10,9 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 /**
- * User preferences. Currently the display time zone used for day boundaries
- * (ARRIVED / roll-forward), holiday midnights, and the editor's date fields.
- * Empty identifier == Automatic (follows the device).
+ * User preferences: the display time zone used for day boundaries (ARRIVED /
+ * roll-forward), holiday midnights, and the editor's date fields (empty
+ * identifier == Automatic, follows the device), and the night-blackout switch.
  */
 class SettingsStore(context: Context) {
     private val prefs: SharedPreferences =
@@ -26,6 +26,15 @@ class SettingsStore(context: Context) {
         prefs.edit().putString(KEY_TZ, id).apply()
     }
 
+    private val _nightBlackoutEnabled = MutableStateFlow(prefs.getBoolean(KEY_BLACKOUT, true))
+    /** When on, the board is painted black between [BLACKOUT_START_HOUR] and [BLACKOUT_END_HOUR] (display zone). */
+    val nightBlackoutEnabled: StateFlow<Boolean> = _nightBlackoutEnabled
+
+    fun setNightBlackoutEnabled(enabled: Boolean) {
+        _nightBlackoutEnabled.value = enabled
+        prefs.edit().putBoolean(KEY_BLACKOUT, enabled).apply()
+    }
+
     val isAutomatic: Boolean get() = _timeZoneIdentifier.value.isEmpty()
 
     /** Resolved zone; read freshly each time so a system zone change is picked up. */
@@ -36,6 +45,17 @@ class SettingsStore(context: Context) {
 
     companion object {
         private const val KEY_TZ = "timeZoneIdentifier"
+        private const val KEY_BLACKOUT = "nightBlackoutEnabled"
+
+        /** Night blackout window: 9:00 PM up to (not including) 6:00 AM, local to the display zone. */
+        const val BLACKOUT_START_HOUR = 21
+        const val BLACKOUT_END_HOUR = 6
+
+        /** True when [instant], read in [zone], falls inside the night-blackout window. */
+        fun isBlackoutHour(instant: Instant, zone: ZoneId): Boolean {
+            val hour = instant.atZone(zone).hour
+            return hour >= BLACKOUT_START_HOUR || hour < BLACKOUT_END_HOUR
+        }
 
         fun zoneFor(identifier: String): ZoneId {
             if (identifier.isEmpty()) return ZoneId.systemDefault()

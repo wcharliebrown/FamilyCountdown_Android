@@ -1,11 +1,14 @@
 package com.dialogs.familycountdown.ui.board
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,21 +22,31 @@ import com.dialogs.familycountdown.model.TimeRemaining
 /**
  * A zero-padded group of flip digits (e.g. 4 for days, 2 for h/m/s) with a
  * right-to-left 50ms stagger so the rightmost digit leads the cascade.
+ * While a [dazzle] run is active the digits show its scrambled characters
+ * instead and follow its left-to-right wave; [startColumn] is this group's
+ * first board column for that wave.
  */
 @Composable
-fun FlipGroup(value: Int, digits: Int, metrics: FlipMetrics) {
+fun FlipGroup(value: Int, digits: Int, metrics: FlipMetrics, dazzle: DazzleRun? = null, row: Int = 0, startColumn: Int = 0) {
     val chars = value.coerceAtLeast(0).toString().padStart(digits, '0').takeLast(digits)
     val gap = with(LocalDensity.current) { metrics.intraSpacing.toDp() }
     Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
         chars.forEachIndexed { idx, ch ->
-            FlipDigit(value = ch, metrics = metrics, delayMs = (chars.length - 1 - idx) * FlipMetrics.STAGGER_MS)
+            val column = startColumn + idx
+            if (dazzle == null) {
+                FlipDigit(value = ch, metrics = metrics, delayMs = (chars.length - 1 - idx) * FlipMetrics.STAGGER_MS)
+            } else {
+                FlipDigit(value = dazzle.charFor(row, column, ch), metrics = metrics, delayMs = dazzle.stagger(column))
+            }
         }
     }
 }
 
 /**
  * Renders a string as a row of resting flap tiles — used for event names and
- * the ARRIVED word so they match the split-flap digits.
+ * the ARRIVED word so they match the split-flap digits. The tiles animate only
+ * while a [dazzle] run is active. [onFirstTap] makes the first tile tappable
+ * (the board's "razzle dazzle" trigger on the top row).
  */
 @Composable
 fun TileText(
@@ -42,11 +55,21 @@ fun TileText(
     tileTop: Color = FlipMetrics.cardTop,
     tileBottom: Color = FlipMetrics.cardBottom,
     glyph: Color = FlipMetrics.glyphColor,
+    dazzle: DazzleRun? = null,
+    row: Int = 0,
+    startColumn: Int = 0,
+    onFirstTap: (() -> Unit)? = null,
 ) {
     val gap = with(LocalDensity.current) { metrics.intraSpacing.toDp() }
     Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-        text.forEach { ch ->
-            TileFace(char = ch, metrics = metrics, tileTop = tileTop, tileBottom = tileBottom, glyph = glyph)
+        text.forEachIndexed { idx, ch ->
+            val tapModifier = if (idx == 0 && onFirstTap != null) {
+                Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onFirstTap)
+            } else Modifier
+            DazzleTile(
+                real = ch, row = row, column = startColumn + idx, dazzle = dazzle, metrics = metrics,
+                tileTop = tileTop, tileBottom = tileBottom, glyph = glyph, modifier = tapModifier,
+            )
         }
     }
 }
@@ -87,12 +110,12 @@ private fun HeaderLabel(text: String, digits: Int, metrics: FlipMetrics) {
 
 /** The full DDDD HH MM SS split-flap readout — spacing between groups, exactly like the web board. */
 @Composable
-fun FlipClock(remaining: TimeRemaining, metrics: FlipMetrics) {
+fun FlipClock(remaining: TimeRemaining, metrics: FlipMetrics, dazzle: DazzleRun? = null, row: Int = 0, startColumn: Int = 0) {
     val gap = with(LocalDensity.current) { metrics.groupSpacing.toDp() }
     Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-        FlipGroup(remaining.days, 4, metrics)
-        FlipGroup(remaining.hours, 2, metrics)
-        FlipGroup(remaining.minutes, 2, metrics)
-        FlipGroup(remaining.seconds, 2, metrics)
+        FlipGroup(remaining.days, 4, metrics, dazzle, row, startColumn)
+        FlipGroup(remaining.hours, 2, metrics, dazzle, row, startColumn + 4)
+        FlipGroup(remaining.minutes, 2, metrics, dazzle, row, startColumn + 6)
+        FlipGroup(remaining.seconds, 2, metrics, dazzle, row, startColumn + 8)
     }
 }

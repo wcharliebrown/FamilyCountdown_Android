@@ -1,5 +1,6 @@
 package com.dialogs.familycountdown.ui.editor
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -94,7 +96,7 @@ fun EventListScreen(store: EventStore, settings: SettingsStore, state: EditorSta
                 }
             }
 
-            item { KioskSection() }
+            item { KioskSection(settings) }
 
             item {
                 if (pendingDelete != null) {
@@ -160,12 +162,15 @@ private fun PinIcon() {
 
 /**
  * Kiosk: the boot receiver can only bring the board back after a reboot when
- * "Display over other apps" has been granted (Android 10+ background-start rule).
+ * "Display over other apps" has been granted (Android 10+ background-start rule);
+ * the night-blackout switch; and Exit Kiosk, which closes the app.
  */
 @Composable
-private fun KioskSection() {
+private fun KioskSection(settings: SettingsStore) {
     val context = LocalContext.current
     var allowed by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+    val blackout by settings.nightBlackoutEnabled.collectAsState()
+    var confirmExit by remember { mutableStateOf(false) }
 
     // Re-check when we come back from the system settings screen.
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -179,8 +184,9 @@ private fun KioskSection() {
 
     Section(
         header = "Kiosk",
-        footer = if (allowed) "The board relaunches itself after the tablet reboots."
-        else "Android only lets the board relaunch itself after a reboot when it may display over other apps. Grant it once.",
+        footer = (if (allowed) "The board relaunches itself after the tablet reboots. "
+        else "Android only lets the board relaunch itself after a reboot when it may display over other apps. Grant it once. ") +
+            "Exit Kiosk closes the app; while auto-start is allowed it comes back at the next reboot.",
     ) {
         SettingsRow(
             title = "Auto-start after reboot",
@@ -197,6 +203,30 @@ private fun KioskSection() {
                     Spacer(Modifier.width(4.dp))
                 }
             },
+        )
+        RowDivider()
+        SettingsRow(
+            title = "Night blackout",
+            subtitle = "Board goes black 9:00 PM – 6:00 AM (display time zone)",
+            trailing = { Switch(checked = blackout, onCheckedChange = { settings.setNightBlackoutEnabled(it) }) },
+        )
+        RowDivider()
+        SettingsRow(
+            title = "Exit Kiosk",
+            subtitle = "Close FamilyCountdown and return to Android",
+            titleColor = MaterialTheme.colorScheme.error,
+            onClick = { confirmExit = true },
+        )
+    }
+    if (confirmExit) {
+        InlineConfirm(
+            message = "Close FamilyCountdown?",
+            confirmLabel = "Exit",
+            onConfirm = {
+                confirmExit = false
+                (context as? Activity)?.finishAndRemoveTask()
+            },
+            onCancel = { confirmExit = false },
         )
     }
 }

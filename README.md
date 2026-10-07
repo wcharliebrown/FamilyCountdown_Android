@@ -14,11 +14,23 @@ and stored on-device — no server or password.
 Built for a 15.6" 1920×1080 Android 12 touch kiosk (HIGOLE all-in-one) running
 in landscape, but it works on any landscape tablet from Android 8 (API 26) up.
 
-The gear (top-right) opens the editor: set the display time zone, shift saved
-event times between zones, add / edit / delete events, and grant the one
-permission needed for auto-start after a reboot.
+The gear (top-right), or a tap anywhere on the board, opens the editor: set
+the display time zone, shift saved event times between zones, add / edit /
+delete events, grant the one permission needed for auto-start after a reboot,
+switch the night blackout on or off, and **Exit Kiosk** (close the app and
+return to Android).
 
-![FamilyCountdown editor — Display settings (Time Zone, Shift Event Times), the Kiosk auto-start permission, and the editable event list](docs/settings.png)
+![FamilyCountdown editor — Display settings (Time Zone, Shift Event Times), the Kiosk rows (auto-start permission, Night blackout switch, Exit Kiosk), and the editable event list](docs/settings.png)
+
+Tap the first tile of the top row for a little **razzle dazzle**: every tile on
+the board flips through random letters and digits for about five seconds in a
+left-to-right wave, then settles back on the real display.
+
+![FamilyCountdown mid razzle-dazzle — every tile showing a random letter or digit](docs/dazzle.png)
+
+**Night blackout** (on by default) paints the board black from 9:00 PM to
+6:00 AM in the display time zone. A tap on the black screen still opens the
+editor, where the switch lives.
 
 **Time Zone** picks which zone drives day boundaries (defaults to Automatic, following the device):
 
@@ -78,14 +90,17 @@ emulator -avd kiosk_1080p -no-snapshot-save -no-boot-anim &
 app/src/main/java/com/dialogs/familycountdown/
   model/      CountdownEvent, Iso8601, CountdownEngine, HolidayProvider, TimeShift,
               EventStore (JSON file), SettingsStore (SharedPreferences)
-  ui/board/   BoardScreen (board + 1 s tick), BoardLayout (font-size / rows math),
-              EventRow, FlipClock/FlipGroup/TileText/ClockHeader, FlipDigit/TileFace (split-flap)
+  ui/board/   BoardScreen (board + 1 s tick, tap-anywhere, blackout, dazzle driver),
+              BoardLayout (font-size / rows math), EventRow,
+              FlipClock/FlipGroup/TileText/ClockHeader, FlipDigit/TileFace (split-flap),
+              Dazzle (DazzleRun + DazzleTile)
   ui/editor/  EditorOverlay (in-window sheet + back stack), EventListScreen, EventEditorScreen
               (+ date / time pickers), TimeZonePickerScreen, ShiftTimesScreen
   MainActivity (immersive, keep-screen-on), BootReceiver, FamilyCountdownApp
 app/src/main/assets/SeedEvents.json        first-launch seed (same file as iOS)
 app/src/main/res/font/                     JetBrains Mono ExtraBold
-app/src/test/.../CountdownTests.kt         holiday math, roll-forward, ARRIVED, store round-trip, time shift
+app/src/test/.../CountdownTests.kt         holiday math, roll-forward, ARRIVED, store round-trip, time shift,
+                                           blackout hours, dazzle characters
 ```
 
 ## Notes
@@ -108,6 +123,22 @@ app/src/test/.../CountdownTests.kt         holiday math, roll-forward, ARRIVED, 
   midnights, and the editor's date fields; the countdown numbers are absolute.
 - **Editor windows**: the editor, confirmations and pickers are drawn inside the
   activity window (no Dialogs) so the system bars never reappear on the kiosk.
+- **Tap anywhere**: the board's root box has a tap-gesture handler that opens
+  the editor; the gear and the razzle-dazzle tile sit above it and consume
+  their own taps first.
+- **Razzle dazzle**: `DazzleRun` (ui/board/Dazzle.kt) is a tick counter driven
+  by `BoardScreen`. Event names and ARRIVED are static `TileFace`s at rest and
+  become animated `FlipDigit`s only while a run is active (`DazzleTile`), so the
+  board stays cheap the rest of the time. Each tile's scrambled character is a
+  pure hash of (seed, tick, row, column); the tick period equals the flip
+  duration so no flip is interrupted, and the final tick lands every tile back
+  on its real character.
+- **Night blackout**: `SettingsStore.isBlackoutHour` evaluates the 9 PM – 6 AM
+  window in the display zone every tick, so the board goes dark and comes back
+  on its own. The screen stays on (black pixels); nothing is scheduled.
+- **Exit Kiosk**: `finishAndRemoveTask()` after an inline confirm. While
+  auto-start is allowed the boot receiver brings the board back after the next
+  power cycle.
 
 ## License
 
